@@ -116,8 +116,10 @@ class BlackJack {
                     handValue += card[1];
                 }
             }
-            if (handValue > 21)
+            if (handValue > 21) {
                 l = null;
+                this.openHands--;
+            }
             if (p.dealer == true && handValue < 17) {
                 l.add(dealToHand());
             }
@@ -130,7 +132,7 @@ class BlackJack {
                 }
             }
             if (count == 0)
-                this.doneBetting = true;
+                this.doneBetting = false;
         }
         this.openBet = false;
     }
@@ -322,6 +324,7 @@ class BlackJack {
         while (bj.openHands > 1 && bj.doneBetting == false) {
             bj.dealAfterBet(s);
             bj.printBank();
+            bj.evaluateTable(s);
         }
         bj.evaluateTable(s);
         s.close();
