@@ -36,7 +36,7 @@ class Hand {
     ArrayList<Integer> hand;
 
     public Hand() {
-        this.hand = new ArrayList<Integer>();
+        this.hand = null;
     }
 }
 
@@ -50,6 +50,7 @@ class BlackJack {
     int handsPlayed;
     int ante;
     boolean handActive;
+    boolean doneBetting;
     int openHands;
     boolean openBet;
     int pot;
@@ -65,6 +66,7 @@ class BlackJack {
         this.handActive = false;
         this.openHands = 0;
         this.openBet = false;
+        this.doneBetting = false;
         this.pot = 0;
         this.ante = 0;
         this.minBet = 1;
@@ -82,7 +84,24 @@ class BlackJack {
         this.openBetting();
     }
 
+    public void open() {
+        this.handsPlayed++;
+        this.handActive = true;
+        setDealer();
+        for (Player p : table) {
+            this.openHands++;
+            Hand h = new Hand();
+            h.hand = new ArrayList<Integer>();
+            int card1 = dealToHand();
+            int card2 = dealToHand();
+            h.hand.add(card1);
+            h.hand.add(card2);
+            p.currentHand = h;
+        }
+    }
+
     public void dealAfterBet(Scanner scanner) {
+        int count = 0;
         for (Player p : table) {
             ArrayList<Integer> l = p.currentHand.hand;
             if (l.size() == 0) {
@@ -107,32 +126,36 @@ class BlackJack {
                 String answer = scanner.nextLine();
                 if (answer.equalsIgnoreCase("y") || answer.equalsIgnoreCase("yes")) {
                     l.add(dealToHand());
+                    count++;
                 }
             }
+            if (count == 0)
+                this.doneBetting = true;
         }
         this.openBet = false;
     }
 
-    public void open() {
-        this.handsPlayed++;
-        this.handActive = true;
-        setDealer();
+    public void evaluateTable(Scanner scanner) {
         for (Player p : table) {
-            this.openHands++;
-            Hand h = new Hand();
-            // if (p.dealer != true) {
-            // p.bank -= ante;
-            // this.pot += ante;
-            // }
-            int card1 = dealToHand();
-            int card2 = dealToHand();
-            h.hand.add(card1);
-            h.hand.add(card2);
-            p.currentHand = h;
-            this.openHands++;
+            int value = faceValue(p);
+            System.out.println(p.name + ": " + value);
+            // BUST
+            if (value > 21) {
+                p.currentHand.hand = null;
+                p.currentBet = 0;
+                this.openHands--;
+            }
+            // BLACKJACK
+            else if (value == 21) {
+                p.currentHand.hand = null;
+                p.bank += p.currentBet * 2;
+                p.currentBet = 0;
+                this.openHands--;
+            }
         }
     }
 
+    // GAME HELPERS
     public int dealToHand() {
         Random rand = new Random();
         int int1 = rand.nextInt(52);
@@ -144,12 +167,27 @@ class BlackJack {
         return int1;
     }
 
-    // GAME HELPERS
     public int[] cardConvertor(int index) {
         int suit = index / 13;
         int face = index % 13;
         int[] card = { suit, face + 1 };
         return card;
+    }
+
+    public int faceValue(Player p) {
+        int handValue = 0;
+        if (p.currentHand.hand != null) {
+            ArrayList<Integer> l = p.currentHand.hand;
+            for (int i = 0; i < l.size(); i++) {
+                int[] card = cardConvertor(l.get(i));
+                if (card[1] > 9) {
+                    handValue += 10;
+                } else {
+                    handValue += card[1];
+                }
+            }
+        }
+        return handValue;
     }
 
     private void setDealer() {
@@ -201,6 +239,8 @@ class BlackJack {
     }
 
     public void printBank() {
+        System.out.println("Shoe count: " + this.cardsRemaining);
+        System.out.println("Total hands: " + this.openHands);
         for (Player p : this.table) {
             System.out.print("--> Player: " + p.name + ", ");
             System.out.print("Bank: " + p.bank + " <--");
@@ -278,10 +318,12 @@ class BlackJack {
             bj.open();
         }
         bj.printBank();
-        while (bj.openHands > 1 && bj.openBet == true) {
+        bj.evaluateTable(s);
+        while (bj.openHands > 1 && bj.doneBetting == false) {
             bj.dealAfterBet(s);
+            bj.printBank();
         }
-        bj.printBank();
+        bj.evaluateTable(s);
         s.close();
     }
 }
