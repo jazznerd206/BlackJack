@@ -11,6 +11,7 @@ class Player {
     boolean dealer;
     Hand currentHand;
     int currentBet;
+    boolean currentClose;
 
     public Player(String name) {
         this.name = name;
@@ -18,6 +19,7 @@ class Player {
         this.dealer = false;
         this.currentHand = null;
         this.currentBet = 0;
+        this.currentClose = false;
     }
 
     public boolean wager(int amount) {
@@ -36,7 +38,7 @@ class Hand {
     ArrayList<Integer> hand;
 
     public Hand() {
-        this.hand = null;
+        this.hand = new ArrayList<Integer>();
     }
 }
 
@@ -55,6 +57,8 @@ class BlackJack {
     boolean openBet;
     int pot;
     int minBet;
+    int houseScore;
+    int housePot;
 
     // public constructor
     public BlackJack(int players) {
@@ -70,33 +74,41 @@ class BlackJack {
         this.pot = 0;
         this.ante = 0;
         this.minBet = 1;
+        this.houseScore = 0;
+        this.housePot = 0;
     }
 
+    // GAME DRIVERS
     public void gatherMinimumBet(Scanner scanner) {
+        this.handsPlayed += players;
+        setDealer();
         Scanner s = scanner;
         for (Player p : table) {
-            System.out.println(p.name + ": Minimum bet is " + this.minBet + ". You have " + p.bank + ". Your wager?");
-            int bet = s.nextInt();
-            s.nextLine();
-            if (bet >= this.minBet && bet <= p.bank)
-                p.wager(bet);
+            if (!p.dealer) {
+                System.out
+                        .println(p.name + ": Minimum bet is " + this.minBet + ". You have " + p.bank + ". Your wager?");
+                int bet = s.nextInt();
+                s.nextLine();
+                if (bet >= this.minBet && bet <= p.bank)
+                    p.wager(bet);
+            }
         }
         this.openBetting();
     }
 
     public void open() {
-        this.handsPlayed++;
         this.handActive = true;
-        setDealer();
         for (Player p : table) {
             this.openHands++;
             Hand h = new Hand();
-            h.hand = new ArrayList<Integer>();
             int card1 = dealToHand();
             int card2 = dealToHand();
             h.hand.add(card1);
             h.hand.add(card2);
             p.currentHand = h;
+            if (p.dealer == true) {
+                this.houseScore = faceValue(p);
+            }
         }
     }
 
@@ -116,19 +128,20 @@ class BlackJack {
                     handValue += card[1];
                 }
             }
-            if (handValue > 21) {
-                l = null;
-                this.openHands--;
+            if (p.dealer == true) {
+                if (handValue < 17) {
+                    l.add(dealToHand());
+                }
+                this.houseScore = faceValue(p);
             }
-            if (p.dealer == true && handValue < 17) {
-                l.add(dealToHand());
-            }
-            if (p.dealer == false) {
+            if (p.dealer == false && handValue <= 20 || p.dealer == false && p.currentClose == false) {
                 System.out.println(p.name + ": Do you want another card... y/n?");
                 String answer = scanner.nextLine();
                 if (answer.equalsIgnoreCase("y") || answer.equalsIgnoreCase("yes")) {
                     l.add(dealToHand());
                     count++;
+                } else if (answer.equalsIgnoreCase("n") || answer.equalsIgnoreCase("no")) {
+                    p.currentClose = true;
                 }
             }
             if (count == 0)
@@ -143,16 +156,29 @@ class BlackJack {
             System.out.println(p.name + ": " + value);
             // BUST
             if (value > 21) {
-                p.currentHand.hand = null;
+                p.currentHand.hand = new ArrayList<Integer>();
                 p.currentBet = 0;
                 this.openHands--;
             }
             // BLACKJACK
             else if (value == 21) {
-                p.currentHand.hand = null;
+                p.currentHand.hand = new ArrayList<Integer>();
                 p.bank += p.currentBet * 2;
                 p.currentBet = 0;
                 this.openHands--;
+            }
+        }
+    }
+
+    public void scoreTable() {
+        System.out.println("I'm done. My brain hurts.");
+    }
+
+    public void calculateWinLoss() {
+        System.out.println("This is the winner circle.");
+        for (Player p : table) {
+            if (p.dealer == true) {
+
             }
         }
     }
@@ -204,15 +230,6 @@ class BlackJack {
         }
     }
 
-    private int getAnte() {
-        int min = Integer.MAX_VALUE;
-        for (Player p : table) {
-            if (p.bank < min)
-                min = p.bank;
-        }
-        return (int) Math.round(min * .05) == 0 ? 1 : (int) Math.round(min * .05);
-    }
-
     public void openBetting() {
         this.openBet = true;
     }
@@ -243,6 +260,7 @@ class BlackJack {
     public void printBank() {
         System.out.println("Shoe count: " + this.cardsRemaining);
         System.out.println("Total hands: " + this.openHands);
+        System.out.println("House Score: " + this.houseScore);
         for (Player p : this.table) {
             System.out.print("--> Player: " + p.name + ", ");
             System.out.print("Bank: " + p.bank + " <--");
@@ -309,9 +327,6 @@ class BlackJack {
             bj.table[i] = newPlayer;
             bj.players++;
         }
-
-        // set table rules (ante, first dealer, print bank)
-        // bj.ante = bj.getAnte();
         bj.printBank();
 
         // game loop
@@ -327,6 +342,7 @@ class BlackJack {
             bj.evaluateTable(s);
         }
         bj.evaluateTable(s);
+        bj.scoreTable();
         s.close();
     }
 }
